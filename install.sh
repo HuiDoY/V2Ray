@@ -1,4 +1,5 @@
 #!/bin/bash
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 red='\e[91m'
 green='\e[92m'
@@ -12,6 +13,7 @@ _yellow() { echo -e ${yellow}$*${none}; }
 _magenta() { echo -e ${magenta}$*${none}; }
 _cyan() { echo -e ${cyan}$*${none}; }
 
+author=233boy
 # Root
 [[ $(id -u) != 0 ]] && echo -e "\n 哎呀……请使用 ${red}root ${none}用户运行 ${yellow}~(^_^) ${none}\n" && exit 1
 
@@ -19,40 +21,24 @@ cmd="apt-get"
 
 sys_bit=$(uname -m)
 
-case $sys_bit in
-i[36]86)
+if [[ $sys_bit == "i386" || $sys_bit == "i686" ]]; then
 	v2ray_bit="32"
-	caddy_arch="386"
-	;;
-x86_64)
+	v2arch="386"
+elif [[ $sys_bit == "x86_64" ]]; then
 	v2ray_bit="64"
-	caddy_arch="amd64"
-	;;
-*armv6*)
-	v2ray_bit="arm"
-	caddy_arch="arm6"
-	;;
-*armv7*)
-	v2ray_bit="arm"
-	caddy_arch="arm7"
-	;;
-*aarch64* | *armv8*)
-	v2ray_bit="arm64"
-	caddy_arch="arm64"
-	;;
-*)
+	v2arch="amd64"
+else
 	echo -e " 
 	哈哈……这个 ${red}辣鸡脚本${none} 不支持你的系统。 ${yellow}(-_-) ${none}
 
 	备注: 仅支持 Ubuntu 16+ / Debian 8+ / CentOS 7+ 系统
 	" && exit 1
-	;;
-esac
+fi
 
 # 笨笨的检测方法
-if [[ $(command -v apt-get) || $(command -v yum) ]] && [[ $(command -v systemctl) ]]; then
+if [[ -f /usr/bin/apt-get || -f /usr/bin/yum ]] && [[ -f /bin/systemctl ]]; then
 
-	if [[ $(command -v yum) ]]; then
+	if [[ -f /usr/bin/yum ]]; then
 
 		cmd="yum"
 
@@ -69,13 +55,15 @@ else
 fi
 
 uuid=$(cat /proc/sys/kernel/random/uuid)
-old_id="e55c8d17-2cf3-b21a-bcf1-eeacb011ed79"
 v2ray_server_config="/etc/v2ray/config.json"
 v2ray_client_config="/etc/v2ray/233blog_v2ray_config.json"
 backup="/etc/v2ray/233blog_v2ray_backup.conf"
 _v2ray_sh="/usr/local/sbin/v2ray"
 systemd=true
 # _test=true
+
+# site
+_site="dduck.xyz"
 
 transport=(
 	TCP
@@ -126,6 +114,7 @@ _load() {
 	local _dir="/etc/v2ray/233boy/v2ray/src/"
 	. "${_dir}$@"
 }
+
 _sys_timezone() {
 	IS_OPENVZ=
 	if hostnamectl status | grep -q openvz; then
@@ -152,6 +141,7 @@ _sys_time() {
 	echo -e "${none}"
 	[[ $IS_OPENV ]] && pause
 }
+
 v2ray_config() {
 	# clear
 	echo
@@ -172,13 +162,13 @@ v2ray_config() {
 		echo "备注1: 含有 [dynamicPort] 的即启用动态端口.."
 		echo "备注2: [utp | srtp | wechat-video | dtls | wireguard] 分别伪装成 [BT下载 | 视频通话 | 微信视频通话 | DTLS 1.2 数据包 | WireGuard 数据包]"
 		echo
-		read -p "$(echo -e "(默认协议: ${cyan}TCP$none)"):" v2ray_transport
-		[ -z "$v2ray_transport" ] && v2ray_transport=1
-		case $v2ray_transport in
+		read -p "$(echo -e "(默认协议: ${cyan}TCP$none)"):" new_v2ray_transport
+		[ -z "$new_v2ray_transport" ] && new_v2ray_transport=1
+		case $new_v2ray_transport in
 		[1-9] | [1-2][0-9] | 3[0-2])
 			echo
 			echo
-			echo -e "$yellow V2Ray 传输协议 = $cyan${transport[$v2ray_transport - 1]}$none"
+			echo -e "$yellow V2Ray 传输协议 = $cyan${transport[$new_v2ray_transport - 1]}$none"
 			echo "----------------------------------------------------------------"
 			echo
 			break
@@ -188,10 +178,10 @@ v2ray_config() {
 			;;
 		esac
 	done
-	v2ray_port_config
+	new_v2ray_port_config
 }
-v2ray_port_config() {
-	case $v2ray_transport in
+new_v2ray_port_config() {
+	case $new_v2ray_transport in
 	4 | 5)
 		tls_config
 		;;
@@ -199,13 +189,13 @@ v2ray_port_config() {
 		local random=$(shuf -i20001-65535 -n1)
 		while :; do
 			echo -e "请输入 "$yellow"V2Ray"$none" 端口 ["$magenta"1-65535"$none"]"
-			read -p "$(echo -e "(默认端口: ${cyan}${random}$none):")" v2ray_port
-			[ -z "$v2ray_port" ] && v2ray_port=$random
-			case $v2ray_port in
+			read -p "$(echo -e "(默认端口: ${cyan}${random}$none):")" new_v2ray_port
+			[ -z "$new_v2ray_port" ] && new_v2ray_port=$random
+			case $new_v2ray_port in
 			[1-9] | [1-9][0-9] | [1-9][0-9][0-9] | [1-9][0-9][0-9][0-9] | [1-5][0-9][0-9][0-9][0-9] | 6[0-4][0-9][0-9][0-9] | 65[0-4][0-9][0-9] | 655[0-3][0-5])
 				echo
 				echo
-				echo -e "$yellow V2Ray 端口 = $cyan$v2ray_port$none"
+				echo -e "$yellow V2Ray 端口 = $cyan$new_v2ray_port$none"
 				echo "----------------------------------------------------------------"
 				echo
 				break
@@ -215,7 +205,7 @@ v2ray_port_config() {
 				;;
 			esac
 		done
-		if [[ $v2ray_transport -ge 18 ]]; then
+		if [[ $new_v2ray_transport -ge 18 ]]; then
 			v2ray_dynamic_port_start
 		fi
 		;;
@@ -229,11 +219,11 @@ v2ray_dynamic_port_start() {
 		read -p "$(echo -e "(默认开始端口: ${cyan}10000$none):")" v2ray_dynamic_port_start_input
 		[ -z $v2ray_dynamic_port_start_input ] && v2ray_dynamic_port_start_input=10000
 		case $v2ray_dynamic_port_start_input in
-		$v2ray_port)
+		$new_v2ray_port)
 			echo
 			echo " 不能和 V2Ray 端口一毛一样...."
 			echo
-			echo -e " 当前 V2Ray 端口：${cyan}$v2ray_port${none}"
+			echo -e " 当前 V2Ray 端口：${cyan}$new_v2ray_port${none}"
 			error
 			;;
 		[1-9] | [1-9][0-9] | [1-9][0-9][0-9] | [1-9][0-9][0-9][0-9] | [1-5][0-9][0-9][0-9][0-9] | 6[0-4][0-9][0-9][0-9] | 65[0-4][0-9][0-9] | 655[0-3][0-5])
@@ -251,8 +241,8 @@ v2ray_dynamic_port_start() {
 
 	done
 
-	if [[ $v2ray_dynamic_port_start_input -lt $v2ray_port ]]; then
-		lt_v2ray_port=true
+	if [[ $v2ray_dynamic_port_start_input -lt $new_v2ray_port ]]; then
+		lt_new_v2ray_port=true
 	fi
 
 	v2ray_dynamic_port_end
@@ -272,11 +262,11 @@ v2ray_dynamic_port_end() {
 				echo
 				echo -e " 当前 V2Ray 动态端口开始：${cyan}$v2ray_dynamic_port_start_input${none}"
 				error
-			elif [ $lt_v2ray_port ] && [[ ${v2ray_dynamic_port_end_input} -ge $v2ray_port ]]; then
+			elif [ $lt_new_v2ray_port ] && [[ ${v2ray_dynamic_port_end_input} -ge $new_v2ray_port ]]; then
 				echo
 				echo " V2Ray 动态端口结束范围 不能包括 V2Ray 端口..."
 				echo
-				echo -e " 当前 V2Ray 端口：${cyan}$v2ray_port${none}"
+				echo -e " 当前 V2Ray 端口：${cyan}$new_v2ray_port${none}"
 				error
 			else
 				echo
@@ -302,9 +292,9 @@ tls_config() {
 	local random=$(shuf -i20001-65535 -n1)
 	while :; do
 		echo -e "请输入 "$yellow"V2Ray"$none" 端口 ["$magenta"1-65535"$none"]，不能选择 "$magenta"80"$none" 或 "$magenta"443"$none" 端口"
-		read -p "$(echo -e "(默认端口: ${cyan}${random}$none):")" v2ray_port
-		[ -z "$v2ray_port" ] && v2ray_port=$random
-		case $v2ray_port in
+		read -p "$(echo -e "(默认端口: ${cyan}${random}$none):")" new_v2ray_port
+		[ -z "$new_v2ray_port" ] && new_v2ray_port=$random
+		case $new_v2ray_port in
 		80)
 			echo
 			echo " ...都说了不能选择 80 端口了咯....."
@@ -318,7 +308,7 @@ tls_config() {
 		[1-9] | [1-9][0-9] | [1-9][0-9][0-9] | [1-9][0-9][0-9][0-9] | [1-5][0-9][0-9][0-9][0-9] | 6[0-4][0-9][0-9][0-9] | 65[0-4][0-9][0-9] | 655[0-3][0-5])
 			echo
 			echo
-			echo -e "$yellow V2Ray 端口 = $cyan$v2ray_port$none"
+			echo -e "$yellow V2Ray 端口 = $cyan$new_v2ray_port$none"
 			echo "----------------------------------------------------------------"
 			echo
 			break
@@ -372,7 +362,7 @@ tls_config() {
 
 	done
 
-	if [[ $v2ray_transport -ne 5 ]]; then
+	if [[ $new_v2ray_transport -ne 5 ]]; then
 		auto_tls_config
 	else
 		caddy=true
@@ -573,14 +563,14 @@ shadowsocks_port_config() {
 		read -p "$(echo -e "(默认端口: ${cyan}${random}$none):") " ssport
 		[ -z "$ssport" ] && ssport=$random
 		case $ssport in
-		$v2ray_port)
+		$new_v2ray_port)
 			echo
 			echo " 不能和 V2Ray 端口一毛一样...."
 			error
 			;;
 		[1-9] | [1-9][0-9] | [1-9][0-9][0-9] | [1-9][0-9][0-9][0-9] | [1-5][0-9][0-9][0-9][0-9] | 6[0-4][0-9][0-9][0-9] | 65[0-4][0-9][0-9] | 655[0-3][0-5])
-			if [[ $v2ray_transport == [45] ]]; then
-				local tls=ture
+			if [[ $new_v2ray_transport == [45] ]]; then
+				local tls=true
 			fi
 			if [[ $tls && $ssport == "80" ]] || [[ $tls && $ssport == "443" ]]; then
 				echo
@@ -681,11 +671,11 @@ install_info() {
 	echo
 	echo "---------- 安装信息 -------------"
 	echo
-	echo -e "$yellow V2Ray 传输协议 = $cyan${transport[$v2ray_transport - 1]}$none"
+	echo -e "$yellow V2Ray 传输协议 = $cyan${transport[$new_v2ray_transport - 1]}$none"
 
-	if [[ $v2ray_transport == [45] ]]; then
+	if [[ $new_v2ray_transport == [45] ]]; then
 		echo
-		echo -e "$yellow V2Ray 端口 = $cyan$v2ray_port$none"
+		echo -e "$yellow V2Ray 端口 = $cyan$new_v2ray_port$none"
 		echo
 		echo -e "$yellow 你的域名 = $cyan$domain$none"
 		echo
@@ -701,9 +691,9 @@ install_info() {
 			echo
 			echo -e "$yellow 路径分流 = ${cyan}/${path}$none"
 		fi
-	elif [[ $v2ray_transport -ge 18 ]]; then
+	elif [[ $new_v2ray_transport -ge 18 ]]; then
 		echo
-		echo -e "$yellow V2Ray 端口 = $cyan$v2ray_port$none"
+		echo -e "$yellow V2Ray 端口 = $cyan$new_v2ray_port$none"
 		echo
 		echo -e "$yellow V2Ray 动态端口范围 = $cyan${v2ray_dynamic_port_start_input} - ${v2ray_dynamic_port_end_input}$none"
 
@@ -713,7 +703,7 @@ install_info() {
 		fi
 	else
 		echo
-		echo -e "$yellow V2Ray 端口 = $cyan$v2ray_port$none"
+		echo -e "$yellow V2Ray 端口 = $cyan$new_v2ray_port$none"
 
 		if [[ $ban_ad ]]; then
 			echo
@@ -739,12 +729,6 @@ install_info() {
 }
 
 domain_check() {
-	# if [[ $cmd == "yum" ]]; then
-	# 	yum install bind-utils -y
-	# else
-	# 	$cmd install dnsutils -y
-	# fi
-	# test_domain=$(dig $domain +short)
 	test_domain=$(ping $domain -c 1 | grep -oE -m1 "([0-9]{1,3}\.){3}[0-9]{1,3}")
 	if [[ $test_domain != $ip ]]; then
 		echo
@@ -772,38 +756,58 @@ caddy_config() {
 	# local email=$(shuf -i1-10000000000 -n1)
 	_load caddy-config.sh
 
-	# systemctl restart caddy
-	do_service restart caddy
+	systemctl restart caddy
 }
 
 install_v2ray() {
-	$cmd update -y
+	## install
+	echo
+	echo
+	echo -e "$yellow 同步系统仓库并安装必须组件，请骚吼~~~~~~~~~ $none"
+	echo
+	echo
 	if [[ $cmd == "apt-get" ]]; then
-		$cmd install -y lrzsz git zip unzip curl wget qrencode libcap2-bin dbus
+		$cmd update -y
+		$cmd install -y socat lrzsz git zip unzip curl wget qrencode libcap2-bin patch diffutils jq dbus
 	else
 		# $cmd install -y lrzsz git zip unzip curl wget qrencode libcap iptables-services
-		$cmd install -y lrzsz git zip unzip curl wget qrencode libcap
+		$cmd install -y socat lrzsz git zip unzip curl wget qrencode libcap patch diffutils
+		if [[ ! $(command -v jq) ]]; then
+			pushd /tmp
+			if curl -sL -o jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-${_jqArch}; then
+				install -m 755 jq /usr/local/bin/
+				rm -f jq
+			else
+				echo
+				_red "安装 jq 失败..."
+				echo
+				exit 1
+			fi
+			popd
+		fi
 	fi
 	ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-	[ -d /etc/v2ray ] && rm -rf /etc/v2ray
-	# date -s "$(curl -sI g.cn | grep Date | cut -d' ' -f3-6)Z"
+	_disableselinux
 	_sys_timezone
 	_sys_time
+	echo
+	echo
+	[ -d /etc/v2ray ] && rm -rf /etc/v2ray
 
 	if [[ $local_install ]]; then
 		if [[ ! -d $(pwd)/config ]]; then
 			echo
 			echo -e "$red 哎呀呀...安装失败了咯...$none"
 			echo
-			echo -e " 请确保你有完整的上传 233v2.com 的 V2Ray 一键安装脚本 & 管理脚本到当前 ${green}$(pwd) $none目录下"
+			echo -e " 请确保你有完整的上传 $author 的 V2Ray 一键安装脚本 & 管理脚本到当前 ${green}$(pwd) $none目录下"
 			echo
 			exit 1
 		fi
 		mkdir -p /etc/v2ray/233boy/v2ray
-		cp -rf $(pwd)/* /etc/v2ray/233boy/v2ray
+		cp -rf $(pwd) /etc/v2ray/233boy/v2ray/
 	else
 		pushd /tmp
-		git clone https://github.com/233boy/v2ray -b "$_gitbranch" /etc/v2ray/233boy/v2ray --depth=1
+		git clone --depth=1 https://github.com/233boy/v2ray -b "$_gitbranch" /etc/v2ray/233boy/v2ray
 		popd
 
 	fi
@@ -825,148 +829,109 @@ install_v2ray() {
 }
 
 open_port() {
-	if [[ $cmd == "apt-get" ]]; then
-		if [[ $1 != "multiport" ]]; then
-
-			iptables -I INPUT -m state --state NEW -m tcp -p tcp --dport $1 -j ACCEPT
-			iptables -I INPUT -m state --state NEW -m udp -p udp --dport $1 -j ACCEPT
-			ip6tables -I INPUT -m state --state NEW -m tcp -p tcp --dport $1 -j ACCEPT
-			ip6tables -I INPUT -m state --state NEW -m udp -p udp --dport $1 -j ACCEPT
-
-			# firewall-cmd --permanent --zone=public --add-port=$1/tcp
-			# firewall-cmd --permanent --zone=public --add-port=$1/udp
-			# firewall-cmd --reload
-
-		else
-
-			local multiport="${v2ray_dynamic_port_start_input}:${v2ray_dynamic_port_end_input}"
-			iptables -I INPUT -p tcp --match multiport --dports $multiport -j ACCEPT
-			iptables -I INPUT -p udp --match multiport --dports $multiport -j ACCEPT
-			ip6tables -I INPUT -p tcp --match multiport --dports $multiport -j ACCEPT
-			ip6tables -I INPUT -p udp --match multiport --dports $multiport -j ACCEPT
-
-			# local multi_port="${v2ray_dynamic_port_start_input}-${v2ray_dynamic_port_end_input}"
-			# firewall-cmd --permanent --zone=public --add-port=$multi_port/tcp
-			# firewall-cmd --permanent --zone=public --add-port=$multi_port/udp
-			# firewall-cmd --reload
-
-		fi
-		iptables-save >/etc/iptables.rules.v4
-		ip6tables-save >/etc/iptables.rules.v6
-		# else
-		# 	service iptables save >/dev/null 2>&1
-		# 	service ip6tables save >/dev/null 2>&1
-	fi
+	_load iptables.sh
+	_iptables_add $1
 }
 del_port() {
-	if [[ $cmd == "apt-get" ]]; then
-		if [[ $1 != "multiport" ]]; then
-			# if [[ $cmd == "apt-get" ]]; then
-			iptables -D INPUT -m state --state NEW -m tcp -p tcp --dport $1 -j ACCEPT
-			iptables -D INPUT -m state --state NEW -m udp -p udp --dport $1 -j ACCEPT
-			ip6tables -D INPUT -m state --state NEW -m tcp -p tcp --dport $1 -j ACCEPT
-			ip6tables -D INPUT -m state --state NEW -m udp -p udp --dport $1 -j ACCEPT
-			# else
-			# 	firewall-cmd --permanent --zone=public --remove-port=$1/tcp
-			# 	firewall-cmd --permanent --zone=public --remove-port=$1/udp
-			# fi
-		else
-			# if [[ $cmd == "apt-get" ]]; then
-			local ports="${v2ray_dynamicPort_start}:${v2ray_dynamicPort_end}"
-			iptables -D INPUT -p tcp --match multiport --dports $ports -j ACCEPT
-			iptables -D INPUT -p udp --match multiport --dports $ports -j ACCEPT
-			ip6tables -D INPUT -p tcp --match multiport --dports $ports -j ACCEPT
-			ip6tables -D INPUT -p udp --match multiport --dports $ports -j ACCEPT
-			# else
-			# 	local ports="${v2ray_dynamicPort_start}-${v2ray_dynamicPort_end}"
-			# 	firewall-cmd --permanent --zone=public --remove-port=$ports/tcp
-			# 	firewall-cmd --permanent --zone=public --remove-port=$ports/udp
-			# fi
-		fi
-		iptables-save >/etc/iptables.rules.v4
-		ip6tables-save >/etc/iptables.rules.v6
-		# else
-		# 	service iptables save >/dev/null 2>&1
-		# 	service ip6tables save >/dev/null 2>&1
-	fi
-
+	_load iptables.sh
+	_iptables_del $1
 }
 
 config() {
 	cp -f /etc/v2ray/233boy/v2ray/config/backup.conf $backup
-	cp -f /etc/v2ray/233boy/v2ray/v2ray.sh $_v2ray_sh
+	ln -s /etc/v2ray/233boy/v2ray/v2ray.sh $_v2ray_sh
 	chmod +x $_v2ray_sh
 
-	v2ray_id=$uuid
-	alterId=233
 	ban_bt=true
-	if [[ $v2ray_transport -ge 18 ]]; then
+	alterId=233
+	v2ray_id=$uuid
+	v2ray_port=$new_v2ray_port
+	v2ray_transport=$new_v2ray_transport
+
+	if [[ $new_v2ray_transport -ge 18 ]]; then
 		v2ray_dynamicPort_start=${v2ray_dynamic_port_start_input}
 		v2ray_dynamicPort_end=${v2ray_dynamic_port_end_input}
 	fi
 	_load config.sh
 
-	if [[ $cmd == "apt-get" ]]; then
-		cat >/etc/network/if-pre-up.d/iptables <<-EOF
-			#!/bin/sh
-			/sbin/iptables-restore < /etc/iptables.rules.v4
-			/sbin/ip6tables-restore < /etc/iptables.rules.v6
-		EOF
-		chmod +x /etc/network/if-pre-up.d/iptables
-		# else
-		# 	[ $(pgrep "firewall") ] && systemctl stop firewalld
-		# 	systemctl mask firewalld
-		# 	systemctl disable firewalld
-		# 	systemctl enable iptables
-		# 	systemctl enable ip6tables
-		# 	systemctl start iptables
-		# 	systemctl start ip6tables
-	fi
+	## save iptables rules
+	_load iptables.sh
+	_iptables_save
 
 	[[ $shadowsocks ]] && open_port $ssport
-	if [[ $v2ray_transport == [45] ]]; then
+	if [[ $new_v2ray_transport == [45] ]]; then
 		open_port "80"
 		open_port "443"
-		open_port $v2ray_port
-	elif [[ $v2ray_transport -ge 18 ]]; then
-		open_port $v2ray_port
+		open_port $new_v2ray_port
+	elif [[ $new_v2ray_transport -ge 18 ]]; then
+		open_port $new_v2ray_port
 		open_port "multiport"
 	else
-		open_port $v2ray_port
+		open_port $new_v2ray_port
 	fi
-	# systemctl restart v2ray
-	do_service restart v2ray
+	systemctl restart v2ray
 	backup_config
 
+	## check status
+	_load status.sh
+	_check_status
 }
 
 backup_config() {
-	sed -i "18s/=1/=$v2ray_transport/; 21s/=2333/=$v2ray_port/; 24s/=$old_id/=$uuid/" $backup
-	if [[ $v2ray_transport -ge 18 ]]; then
-		sed -i "30s/=10000/=$v2ray_dynamic_port_start_input/; 33s/=20000/=$v2ray_dynamic_port_end_input/" $backup
+
+	# load backup script
+	_load backup.sh
+
+	## v2ray transport, port, uuid
+	_first_backup v2ray
+
+	## dynamic port
+	if [[ $new_v2ray_transport -ge 18 ]]; then
+		_first_backup dynamicPort
 	fi
+
+	## ss
 	if [[ $shadowsocks ]]; then
-		sed -i "42s/=/=true/; 45s/=6666/=$ssport/; 48s/=233blog.com/=$sspass/; 51s/=chacha20-ietf/=$ssciphers/" $backup
+		_first_backup +ss
 	fi
-	[[ $v2ray_transport == [45] ]] && sed -i "36s/=233blog.com/=$domain/" $backup
-	[[ $caddy ]] && sed -i "39s/=/=true/" $backup
-	[[ $ban_ad ]] && sed -i "54s/=/=true/" $backup
+
+	## domain, ws+tls / http2
+	if [[ $new_v2ray_transport == [45] ]]; then
+		_first_backup domain
+	fi
+
+	## ws+tls / http2, auto config tls
+	if [[ $caddy ]]; then
+		_first_backup caddy
+	fi
+
+	## ban ad
+	if [[ $ban_ad ]]; then
+		_first_backup +ad
+	fi
+
+	## ws+tls / http2, path
 	if [[ $is_path ]]; then
-		sed -i "57s/=/=true/; 60s/=233blog/=$path/" $backup
-		sed -i "63s#=https://liyafly.com#=$proxy_site#" $backup
+		_first_backup +path
 	fi
 }
 
 get_ip() {
-	ip=$(curl -s https://ipinfo.io/ip)
-	[[ -z $ip ]] && ip=$(curl -s https://api.ip.sb/ip)
-	[[ -z $ip ]] && ip=$(curl -s https://api.ipify.org)
-	[[ -z $ip ]] && ip=$(curl -s https://ip.seeip.org)
-	[[ -z $ip ]] && ip=$(curl -s https://ifconfig.co/ip)
-	[[ -z $ip ]] && ip=$(curl -s https://api.myip.com | grep -oE "([0-9]{1,3}\.){3}[0-9]{1,3}")
-	[[ -z $ip ]] && ip=$(curl -s icanhazip.com)
-	[[ -z $ip ]] && ip=$(curl -s myip.ipip.net | grep -oE "([0-9]{1,3}\.){3}[0-9]{1,3}")
+	ip=$(curl -4 -s https://ipinfo.io/ip)
+	[[ -z $ip ]] && ip=$(curl -4 -s https://api.ip.sb/ip)
+	[[ -z $ip ]] && ip=$(curl -4 -s https://api.ipify.org)
+	[[ -z $ip ]] && ip=$(curl -4 -s https://ip.seeip.org)
+	[[ -z $ip ]] && ip=$(curl -4 -s https://ifconfig.co/ip)
+	[[ -z $ip ]] && ip=$(curl -4 -s https://api.myip.com | grep -oE "([0-9]{1,3}\.){3}[0-9]{1,3}")
+	[[ -z $ip ]] && ip=$(curl -4 -s icanhazip.com)
+	[[ -z $ip ]] && ip=$(curl -4 -s myip.ipip.net | grep -oE "([0-9]{1,3}\.){3}[0-9]{1,3}")
 	[[ -z $ip ]] && echo -e "\n$red 这垃圾小鸡扔了吧！$none\n" && exit
+
+	v6ip=$(curl -m 5 -6 -s https://ifconfig.co/ip)
+	[[ -z $v6ip ]] && v6ip=$(curl -m 5 -6 -s https://api.ip.sb/ip)
+	[[ -z $v6ip ]] && v6ip=$(curl -m 5 -6 -s https://ip.seeip.org)
+	[[ -z $v6ip ]] && v6ip=$(curl -m 5 -6 -s http://icanhazip.com)
+	[[ -z $v6ip ]] && v6ip=$(curl -m 5 -6 -s https://api.myip.com | cut -d\" -f4)
 }
 
 error() {
@@ -993,10 +958,9 @@ show_config_info() {
 	_v2_args
 	_v2_info
 	_load ss-info.sh
-
 }
 
-install() {
+_install() {
 	if [[ -f /usr/bin/v2ray/v2ray && -f /etc/v2ray/config.json ]] && [[ -f $backup && -d /etc/v2ray/233boy/v2ray ]]; then
 		echo
 		echo " 大佬...你已经安装 V2Ray 啦...无需重新安装"
@@ -1018,7 +982,7 @@ install() {
 	install_info
 	# [[ $caddy ]] && domain_check
 	install_v2ray
-	if [[ $caddy || $v2ray_port == "80" ]]; then
+	if [[ $caddy || $new_v2ray_port == "80" ]]; then
 		if [[ $cmd == "yum" ]]; then
 			[[ $(pgrep "httpd") ]] && systemctl stop httpd
 			[[ $(command -v httpd) ]] && yum remove httpd -y
@@ -1037,7 +1001,8 @@ install() {
 	config
 	show_config_info
 }
-uninstall() {
+
+_uninstall() {
 
 	if [[ -f /usr/bin/v2ray/v2ray && -f /etc/v2ray/config.json ]] && [[ -f $backup && -d /etc/v2ray/233boy/v2ray ]]; then
 		. $backup
@@ -1057,10 +1022,21 @@ uninstall() {
 		echo -e "
 		$red 大胸弟...你貌似毛有安装 V2Ray ....卸载个鸡鸡哦...$none
 
-		备注...仅支持卸载使用我 (233v2.com) 提供的 V2Ray 一键安装脚本
+		备注...仅支持卸载使用我 ($author) 提供的 V2Ray 一键安装脚本
 		" && exit 1
 	fi
 
+}
+
+_disableselinux() {
+	# Configure SELinux
+	type selinuxenabled >/dev/null 2>&1 || return 0
+	[[ ! -f /etc/selinux/config ]] && return 0
+	if selinuxenabled; then
+		setenforce Permissive
+		# disable selinux needs reboot, set to Permissive
+		sed -i 's/^SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config
+	fi
 }
 
 args=$1
@@ -1091,11 +1067,11 @@ esac
 clear
 while :; do
 	echo
-	echo "........... V2Ray 一键安装脚本 & 管理脚本 by 233v2.com .........."
+	echo "........... V2Ray 一键安装脚本 & 管理脚本 by $author .........."
 	echo
-	echo "帮助说明: https://233v2.com/post/1/"
+	echo "帮助说明: https://$_site/post/1/"
 	echo
-	echo "搭建教程: https://233v2.com/post/2/"
+	echo "搭建教程: https://$_site/post/2/"
 	echo
 	echo " 1. 安装"
 	echo
@@ -1104,15 +1080,18 @@ while :; do
 	if [[ $local_install ]]; then
 		echo -e "$yellow 温馨提示.. 本地安装已启用 ..$none"
 		echo
+	elif [[ $_gitbranch != "master" ]]; then
+		echo -e "$yellow 温馨提示.. 脚本将使用 ${green}$_gitbranch $yellow分支进行安装..$none"
+		echo
 	fi
 	read -p "$(echo -e "请选择 [${magenta}1-2$none]:")" choose
 	case $choose in
 	1)
-		install
+		_install
 		break
 		;;
 	2)
-		uninstall
+		_uninstall
 		break
 		;;
 	*)
